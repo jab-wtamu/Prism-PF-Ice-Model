@@ -5,10 +5,10 @@
 // STATUS / INCREMENTAL PLAN
 //
 // STEP 0 (plumbing):
-//   - Created new ice app using the coupled template structure (MatrixFreePDE).
-//   - Primary variables are ONLY: u (0) and phi (1).
+//   - Created new ice app using the coupled template structure.
+//   - Primary variables are only: u (0) and phi (1).
 //
-// STEP 1 (implemented already):
+// STEP 1 :
 //   - Implemented ONLY the FIRST term of Demange Eq(2) for u:
 //         ∂t u = Dtilde * ∇ · ( q(phi) ∇u )
 //     using NORMAL gradient ∇ (no ∇_Gamma) and NO coupling term.
@@ -17,14 +17,14 @@
 //   - IMPORTANT type fix: scalargradType is a Tensor, so zero tensors must be set
 //     component-by-component (cannot assign constV(0.0) directly to scalargradType).
 //
-// STEP 2 (this change / what professor asked next):
+// STEP 2 :
 //   - Implement ONLY the "local source part" of Demange Eq(1) for phi:
 //
 //         A(n)^2 * ∂t phi = f'(phi) + lambda * B(n) * g'(phi) * u
 //
-//     BUT for this incremental step, anisotropy is OFF, so:
+//     but for this incremental step, anisotropy is OFF, so:
 //         A = 1,  B = 1
-//     and we DO NOT implement the other terms (divergence terms / F1,F2).
+//     and do not implement the other terms (divergence terms / F1,F2).
 //
 //   - So the implemented update is:
 //
@@ -50,8 +50,9 @@ customAttributeLoader::loadVariableAttributes()
   set_variable_equation_type(0, EXPLICIT_TIME_DEPENDENT);
 
   // STEP 1 deps (kept): u equation uses u, phi, and grad(u)
-  set_dependencies_value_term_RHS(0, "u,phi");
-  set_dependencies_gradient_term_RHS(0, "grad(u)");
+  set_dependencies_value_term_RHS(0, "u,phi");//To compute the value-term RHS for u, 
+  //the framework must load u and phi values (because q(phi) uses phi).
+  set_dependencies_gradient_term_RHS(0, "grad(u)"); //To compute the gradient-term RHS for u, it must load ∇u
 
   // ---------------------------------------------------------------------------
   // Variable 1: phi (phase field)
@@ -59,11 +60,12 @@ customAttributeLoader::loadVariableAttributes()
   set_variable_name(1, "phi");
   set_variable_type(1, SCALAR);
   set_variable_equation_type(1, EXPLICIT_TIME_DEPENDENT);
+  //u is updated explicitly in time (like u_new = u_old + dt*RHS)
 
   // STEP 2 deps (UPDATED):
   // phi equation now depends on phi and u values (still no gradients for this step)
-  set_dependencies_value_term_RHS(1, "phi,u");
-  set_dependencies_gradient_term_RHS(1, "");
+  set_dependencies_value_term_RHS(1, "phi,u"); 
+  set_dependencies_gradient_term_RHS(1, ""); //"" Phi RHS needs no gradients in Step 2 (source-only).
 }
 
 
@@ -83,11 +85,11 @@ customPDE<dim, degree>::explicitEquationRHS(
   // ---------------------------------------------------------------------------
 
   // u (variable 0)
-  scalarvalueType u  = variable_list.get_scalar_value(0);
-  scalargradType  ux = variable_list.get_scalar_gradient(0); // NORMAL gradient ∇u
+  scalarvalueType u  = variable_list.get_scalar_value(0); //Get current u value at this quadrature point.
+  scalargradType  ux = variable_list.get_scalar_gradient(0); // get gradient ∇u
 
   // phi (variable 1)
-  scalarvalueType phi = variable_list.get_scalar_value(1);
+  scalarvalueType phi = variable_list.get_scalar_value(1); //Get current phi value.
 
   // ---------------------------------------------------------------------------
   // Common: build a ZERO gradient tensor (needed for any "no-gradient" terms)
@@ -95,6 +97,7 @@ customPDE<dim, degree>::explicitEquationRHS(
   scalargradType zero_grad;
   for (unsigned int d = 0; d < dim; ++d)
     zero_grad[d] = constV(0.0);
+  //Create a “gradient = 0” vector, component-by-component
 
   // ===========================================================================================
   // STEP 1 (kept): u diffusion only
@@ -109,10 +112,11 @@ customPDE<dim, degree>::explicitEquationRHS(
   // Cutoff function q(phi) = 1 - phi
   scalarvalueType q = constV(1.0) - phi;
 
-  // scale = -(dt * Dtilde) * q(phi)
+  // scale = -(dt * Dtilde) * q(phi) eq.
   scalarvalueType scale_u = constV(-userInputs.dtValue * Dtilde) * q;
 
   // eqx_u is a Tensor -> assign each component
+  //Build the flux/gradient-term RHS for u by multiplying scale_u * ∇u 
   scalargradType eqx_u;
   for (unsigned int d = 0; d < dim; ++d)
     eqx_u[d] = ux[d] * scale_u;
@@ -136,7 +140,7 @@ customPDE<dim, degree>::explicitEquationRHS(
   //   phi^{n+1} = phi^n + dt * ( f'(phi^n) + lambda * g'(phi^n) * u^n )
   // ===========================================================================================
 
-  // f'(phi) for f(phi) = -phi^2/2 + phi^4/4  =>  f'(phi) = -phi + phi^3
+  // f'(phi) for f(phi) = -phi^2/2 + phi^4/4  =>  f'(phi) = -phi + phi^3 double well potential
   scalarvalueType fprime = -phi + phi * phi * phi;
 
   // g'(phi) used by Demange: g'(phi) = (1 - phi^2)^2
@@ -146,7 +150,7 @@ customPDE<dim, degree>::explicitEquationRHS(
   // Local RHS for phi (anisotropy OFF: B=1)
   scalarvalueType rhs_phi = fprime + constV(lambda) * gprime * u;
 
-  // Explicit value update for phi
+  // Explicit value update for phi (time discretization step using the Explicit Euler method.)
   scalarvalueType eq_phi = phi + constV(userInputs.dtValue) * rhs_phi;
 
   // No gradient term for phi in this step
