@@ -78,7 +78,7 @@ customPDE<dim, degree>::setInitialCondition([[maybe_unused]] const Point<dim>  &
       return;
     }
 
-  // Any unexpected index (shouldn't happen if num vars = 2)
+  // Any unexpected index 
   scalar_IC = 0.0;
 }
 
