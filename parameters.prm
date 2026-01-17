@@ -2,39 +2,30 @@
 # parameters.prm  (UPDATED for NEW ICE APP: variables u, phi ONLY)
 # =================================================================================
 #
-# WHAT CHANGED (and WHY)
+# changes
 #
 # 1) Refinement criteria:
 #    - Removed old subsections for "n" and "c"
 #    - Added subsection for "phi"
-#    WHY: Your new ice app no longer has variables named c or n. If these remain,
-#         the framework will try to refine based on non-existent fields and may
-#         error out or silently do nothing.
 #
 # 2) Boundary conditions:
 #    - Removed BCs for c and n
 #    - Added BCs for u and phi
-#    WHY: Variable names must match those set in loadVariableAttributes()
-#         (we set: 0="u", 1="phi").
+#     Variable names must match those set in loadVariableAttributes()
+#         (set: 0="u", 1="phi").
 #
 # 3) Model constants:
 #    - Removed CH–AC constants: Mc, Mn, Kn, matrix_concentration
-#    WHY: These were required only by the old c/n residual equations and ICs.
-#         Keeping them would require input deck clutter and invites wrong wiring.
+#    These were required only by the old c/n residual equations and ICs.
 #
-#    - Kept seed geometry constants used by your current phi IC scaffold:
+#    - Kept seed geometry constants used by current phi IC scaffold:
 #         center1, center2, radius1, radius2
 #
-#    - (Optional) Added u_initial, phi_matrix, phi_seed
-#      WHY: Lets you control the new ICs from the input file without hardcoding.
-#      If your IC code currently hardcodes these, you can still keep these here
-#      for later, but then you must also read them in custompde.h.
-#
-# NOTE:
 # - Everything else (mesh, time step, output) left unchanged to minimize risk.
-# - Domain size Z / subdivisions Z can remain even in 2D; your framework ignores Z.
+# - Domain size Z / subdivisions Z can remain even in 2D; framework ignores Z.
 # =================================================================================
 
+//original*
 
 # =================================================================================
 # Set the number of dimensions (2 or 3 for a 2D or 3D calculation)
@@ -65,8 +56,10 @@ set Refine factor = 6
 # Set the polynomial degree of the element (allowed values: 1, 2, or 3)
 set Element degree = 1
 
+//original*
+
 # =================================================================================
-# Set the adaptive mesh refinement parameters
+# Set the adaptive mesh refinement parameters (AMR)
 # =================================================================================
 # Set the flag determining if adaptive meshing is activated
 set Mesh adaptivity = true
@@ -90,16 +83,10 @@ subsection Refinement criterion: phi
     # its gradient (GRADIENT), or both (VALUE_AND_GRADIENT)
     set Criterion type = VALUE
     # For phi in [-1,+1], refine around the interface region.
-    # You can tighten these later once you see your interface thickness.
     set Value lower bound = -0.9
     set Value upper bound =  0.9
 end
-
-# If you also want to refine based on supersaturation gradients later, add:
-# subsection Refinement criterion: u
-#     set Criterion type = GRADIENT
-# end
-
+#criterion c removed
 # =================================================================================
 # Set the time step parameters
 # =================================================================================
@@ -117,11 +104,11 @@ set Number of time steps = 150000
 #
 # UPDATED: variables are now u and phi (must match equations.h / loadVariableAttributes)
 # ---------------------------------------------------------------------------------
-
-# Supersaturation: start with NATURAL (zero-flux) everywhere for incremental run
+#NATURAL typically means no-flux / Neumann-type behavior (framework default).
+# Supersaturation: 
 set Boundary condition for variable u = NATURAL
 
-# Phase field: NATURAL is typical (lets interface evolve without forcing)
+# Phase field: 
 set Boundary condition for variable phi = NATURAL
 
 # =================================================================================
@@ -139,12 +126,6 @@ set Model constant center2 = (75,75,75), TENSOR
 set Model constant radius1 = 20.0, DOUBLE
 set Model constant radius2 = 8.33333333333, DOUBLE
 
-# OPTIONAL (recommended): IC controls for new variables
-# If you include these, make sure custompde.h reads them (as shown earlier).
-# If you do NOT want them yet, you can delete these 3 lines.
-set Model constant u_initial  = 0.0, DOUBLE      # initial u everywhere
-set Model constant phi_matrix = -1.0, DOUBLE     # phi in vapor
-set Model constant phi_seed   =  1.0, DOUBLE     # phi in ice seed
 
 # Reduced diffusion coefficient for u evolution (Demange Eq. 2 first RHS term)
 set Model constant Dtilde = 1.0, DOUBLE
