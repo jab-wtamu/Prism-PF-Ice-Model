@@ -24,8 +24,6 @@
 //   Variable 1: "u_value"
 
 
-// =============================================================================================
-
 
 // =================================================================================
 // Set the attributes of the postprocessing variables
@@ -44,7 +42,6 @@ customAttributeLoader::loadPostProcessorVariableAttributes()
   set_dependencies_value_term_RHS(0, "phi");
   set_dependencies_gradient_term_RHS(0, "");
 
-  // Optional: integral gives a rough measure of total interface "amount"
   set_output_integral(0, true);
 
   // ---------------------------------------------------------------------------
