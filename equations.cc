@@ -4,19 +4,6 @@
 //
 // STATUS / INCREMENTAL PLAN
 //
-// This week’s incremental updates (STEP 3):
-//
-// 1) u equation (index 0):
-//    - Kept diffusion term with cutoff:
-//        ∂t u = Dtilde * ∇·( (1 - phi) ∇u )
-//    - Added the Demange “minus/coupling” term using the explicit phi update:
-//        u^{n+1} = u^n - (Lsat/2) * (phi^{n+1} - phi^n)
-//
-// 2) phi equation (index 1):
-//    - Kept local source term (anisotropy OFF):
-//        ∂t phi = f'(phi) + lambda * g'(phi) * u
-//    - Added spatial smoothing term (normal Laplacian):
-//        + ∇·(∇phi)  
 //
 // =============================================================================================
 
@@ -145,17 +132,24 @@ scalarvalueType eq_phi = phi + constV(userInputs.dtValue) * rhs_phi;
 
   // ===========================================================================================
 
-// STEP 3 (NEW): Add the  Laplacian term ∇·(∇phi) in weak form.
-// Weak form contribution:  -∫ dt * ∇w · ∇phi dV
-// So the gradient-term coefficient is:  r_phix = -dt * ∇phi (gradient term coeff)
-
-
-scalargradType eqx_phi;                         //(vector coefficient for grad(w))
-for (unsigned int d = 0; d < dim; ++d){
+// STEP 4 (NEW): Γ-anisotropic Laplacian for phi using grad_gamma
+// Weak form: -∫ dt * (∇_Γ w) · (∇_Γ phi) dV
+// With ∇_Γ = (∂x, ∂y, Γ∂z), the z contribution becomes Γ^2 in the dot product.
+scalargradType eqx_phi;
+for (unsigned int d = 0; d < dim; ++d)
+{
+  // default: x and y (2D components) use normal gradient
   eqx_phi[d] = phix[d] * constV(-userInputs.dtValue);
 }
 
-// STEP 3 (NEW): u–phi coupling (Demange Eq.2 minus term, anisotropy OFF) ---
+// Only in 3D: scale the z-component by Gamma^2
+if constexpr (dim == 3)
+{
+  eqx_phi[2] = phix[2] * constV(-userInputs.dtValue * Gamma * Gamma);
+}
+
+
+// STEP 3 ( u–phi coupling (Demange Eq.2 minus term, anisotropy OFF) ---
 scalarvalueType delta_phi = eq_phi - phi;               // eq_phi(new phi at n+1) // phi (old)
 eq_u = u - constV(0.5 * Lsat) * delta_phi;
 
