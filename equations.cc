@@ -65,17 +65,115 @@ customPDE<dim, degree>::explicitEquationRHS(
   // phi (variable 1)
   scalarvalueType phi = variable_list.get_scalar_value(1);
   
-  // STEP 3 (NEW): normal gradient of phi, needed for ∇·(∇phi) term
+  // STEP 3 : normal gradient of phi, needed for ∇·(∇phi) term
 scalargradType phix = variable_list.get_scalar_gradient(1); //  gradient ∇phi
 
+ // ===========================================================================================
+  // Helper functions (paper-consistent, 2D-safe)
+ // ===========================================================================================
+ 
+// grad_gamma: matrix form diag(1,1,Gamma)*grad  (David's Motiel's suggestion)
+  // In 2D: returns grad unchanged (no z component)
+  auto grad_gamma = [&](const scalargradType &g, const double Gamma_val) -> scalargradType {
+    scalargradType out = g;
+    if constexpr (dim == 3)
+      {
+        out[2] = g[2] * constV(Gamma_val);
+      }
+    return out;
+  };
+// ===========================================================================================
+  // Compute unit normal n = -∇phi / |∇phi|  (paper defined)
+  // Uses eps to avoid division by zero.
+// ===========================================================================================  
+  auto compute_normal = [&](const scalargradType &grad_phi) -> scalargradType {
+    scalarvalueType mag2 = constV(0.0);
+    for (unsigned int d = 0; d < dim; ++d)
+      mag2 = mag2 + grad_phi[d] * grad_phi[d];
 
+    // small epsilon (vectorized) to avoid division by zero
+    const scalarvalueType eps = constV(1e-12);
+    scalarvalueType inv_mag;
+    for (unsigned int v = 0; v < mag2.size(); ++v)
+      inv_mag[v] = 1.0 / std::sqrt(mag2[v] + eps[v]);
 
-  // ---------------------------------------------------------------------------
-  // Common: build a ZERO gradient tensor (needed for any "no-gradient" terms)
-  // ---------------------------------------------------------------------------
-  scalargradType zero_grad;
-  for (unsigned int d = 0; d < dim; ++d)
-    zero_grad[d] = constV(0.0);
+    scalargradType n;
+    for (unsigned int d = 0; d < dim; ++d)
+      n[d] = -grad_phi[d] * inv_mag;
+
+    return n;
+  };
+// =================================================================================================
+  // B(n) = sqrt(nx^2 + ny^2 + Gamma^2 nz^2)
+  // In 2D: B(n)=sqrt(nx^2+ny^2)=1 for a unit normal (numerically ~1)
+// ===============================================================================================
+  auto compute_B = [&](const scalargradType &n, const double Gamma_val) -> scalarvalueType {
+    scalarvalueType B2 = n[0] * n[0] + n[1] * n[1];
+    if constexpr (dim == 3)
+      {
+        B2 = B2 + constV(Gamma_val * Gamma_val) * n[2] * n[2];
+      }
+
+    scalarvalueType B;
+    for (unsigned int v = 0; v < B2.size(); ++v)
+      B[v] = std::sqrt(B2[v]);
+
+    return B;
+  };
+// ==============================================================================================
+  // A(n) = 1 + eps_xy cos(6θ) + eps_z cos(2ψ)
+  // θ=atan2(ny,nx)
+  // ψ=atan2(sqrt(nx^2+ny^2), nz)   (3D only)
+  //
+  // In 2D: ψ not defined; we implement A using only the 6-fold in-plane term:
+  //   A = 1 + eps_xy cos(6θ)
+  // Recommended: eps_z=0 in 2D prm.
+// ==============================================================================================  
+  auto compute_A = [&](const scalargradType &n,
+                       const double eps_xy_val,
+                       const double eps_z_val) -> scalarvalueType {
+    scalarvalueType A = constV(1.0);
+
+    // theta = atan2(ny, nx)
+    scalarvalueType theta;
+    for (unsigned int v = 0; v < theta.size(); ++v)
+      theta[v] = std::atan2(n[1][v], n[0][v]);
+
+    // 6-fold term
+    scalarvalueType cos6t;
+    for (unsigned int v = 0; v < cos6t.size(); ++v)
+      cos6t[v] = std::cos(6.0 * theta[v]);
+
+    A = A + constV(eps_xy_val) * cos6t;
+
+    if constexpr (dim == 3)
+      {
+        // psi = atan2( sqrt(nx^2+ny^2), nz )
+        scalarvalueType r;
+        for (unsigned int v = 0; v < r.size(); ++v)
+          r[v] = std::sqrt(n[0][v] * n[0][v] + n[1][v] * n[1][v]);
+
+        scalarvalueType psi;
+        for (unsigned int v = 0; v < psi.size(); ++v)
+          psi[v] = std::atan2(r[v], n[2][v]);
+
+        scalarvalueType cos2p;
+        for (unsigned int v = 0; v < cos2p.size(); ++v)
+          cos2p[v] = std::cos(2.0 * psi[v]);
+
+        A = A + constV(eps_z_val) * cos2p;
+      }
+
+    return A;
+  };
+
+  // Compute n, A(n), B(n) (paper definitions; does not destabilize anything)
+  const scalargradType nvec = compute_normal(phix);
+  const scalarvalueType Bn  = compute_B(nvec, Gamma);
+  [[maybe_unused]] const scalarvalueType An = compute_A(nvec, eps_xy, eps_z);
+  
+  // NOTE: An is computed but not used in the PDE yet*** still testing
+
 
   // ===========================================================================================
   // STEP 1 (kept): u diffusion only
@@ -139,19 +237,22 @@ scalargradType eqx_phi;
 for (unsigned int d = 0; d < dim; ++d)
 {
   // default: x and y (2D components) use normal gradient
-  eqx_phi[d] = phix[d] * constV(-userInputs.dtValue);
+  eqx_phi[d] = phix[d] * constV(-userInputs.dtValue) * (An * An);
 }
 
 // Only in 3D: scale the z-component by Gamma^2
 if constexpr (dim == 3)
 {
-  eqx_phi[2] = phix[2] * constV(-userInputs.dtValue * Gamma * Gamma);
+  eqx_phi[2] = phix[2] * constV(-userInputs.dtValue * Gamma * Gamma) * (An * An);
 }
 
+// ===========================================================================================
 
 // STEP 3 ( u–phi coupling (Demange Eq.2 minus term, anisotropy OFF) ---
 scalarvalueType delta_phi = eq_phi - phi;               // eq_phi(new phi at n+1) // phi (old)
 eq_u = u - constV(0.5 * Lsat) * delta_phi;
+
+// ===========================================================================================
 
 
   // ---------------------------------------------------------------------------
