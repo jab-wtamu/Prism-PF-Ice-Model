@@ -1,13 +1,6 @@
 # =================================================================================
 # parameters.prm  
 # =================================================================================
-#
-# WHAT CHANGED (and WHY)
-#
-# 1) Added Gamma user defined constant
-# =================================================================================
-
-
 # =================================================================================
 # Set the number of dimensions (2 or 3 for a 2D or 3D calculation)
 # =================================================================================
@@ -126,10 +119,10 @@ set Model constant Dtilde = 1.0, DOUBLE
 set Model constant lambda = 3.0, DOUBLE
 
 set Model constant Lsat = 1.0, DOUBLE
-set Model constant Gamma  = 1.0, DOUBLE
+set Model constant Gamma  = 2.0, DOUBLE
 
 #NEW STEP 5
-set Model constant eps_xy = 0.15, DOUBLE
+set Model constant eps_xy = 0.0, DOUBLE
 set Model constant eps_z  = 0.0, DOUBLE
 
 
