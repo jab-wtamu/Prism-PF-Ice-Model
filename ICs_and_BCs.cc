@@ -3,15 +3,7 @@
 // ===========================================================================
   // VISUAL VERIFICATION IC FOR u: Gaussian “bump” initial condition
   // ===========================================================================
-  //
-  // PURPOSE :
-  // - This is not part of the Demange physics model.
-  // - It is a standard PDE verification test for diffusion operators:
-  //     Start with a localized peak -> diffusion should spread/smooth it.
-  // - If u starts uniform (e.g., u=0 everywhere) with NATURAL (no-flux) BCs,
-  //   then ∇u = 0 and the diffusion term has nothing to act on, so u would not
-  //   visibly change. The Gaussian bump creates gradients so we can confirm the
-  //   implemented diffusion + cutoff behavior in the output files.
+  
   //
   // MATHEMATICAL FORM: Radial Gaussian
   //   u(x) = u0 + amp * exp( -|x - x0|^2 / (2*sigma^2) )
@@ -43,28 +35,32 @@ customPDE<dim, degree>::setInitialCondition([[maybe_unused]] const Point<dim>  &
   // -----------------------------
   // u IC (variable 0)
   // -----------------------------
-    if (index == 0)
-    {
-      const double u0    = 0.0;  // baseline u
-      const double amp   = 0.2;  // bump amplitude 
-      const double sigma = 8.0;  // bump width 
+   if (index == 0)
+{
+  const bool use_gaussian_bump = false;  // <-- flip this when ready
 
-      // Compute squared distance r^2 = |x - x0|^2 from bump center.
-      double r2 = 0.0;
-      for (unsigned int dir = 0; dir < dim; ++dir)
-        {
-          const double dx = p[dir] - center1[dir];
-          r2 += dx * dx;
-        }
+const double base = u_initial;  // from parameters.prm
 
-      // Gaussian bump profile.
-      scalar_IC = u0 + amp * std::exp(-r2 / (2.0 * sigma * sigma));
-      // MATHEMATICAL FORM:
-      //   u(x) = u0 + amp * exp( -|x - x0|^2 / (2*sigma^2) )
+  if (!use_gaussian_bump)
+  {
+    scalar_IC = base;   // uniform supersaturation
+    return;
+  }
 
-      // Critical: stop here so the phi IC logic below does not affect u.
-      return;
-    }
+  const double amp   = 0.2;
+  const double sigma = 8.0;
+
+  double r2 = 0.0;
+  for (unsigned int dir = 0; dir < dim; ++dir)
+  {
+    const double dx = p[dir] - center1[dir];
+    r2 += dx * dx;
+  }
+
+scalar_IC = base + amp * std::exp(-r2 / (2.0 * sigma * sigma));
+  return;
+}
+
   // -----------------------------
   // phi IC (variable 1)
   // -----------------------------
@@ -92,8 +88,7 @@ customPDE<dim, degree>::setInitialCondition([[maybe_unused]] const Point<dim>  &
         s = s2;
 
       // Map s in [0,1] -> phi in [-1,+1]
-      scalar_IC = 2.0 * s - 1.0;
-      return;
+scalar_IC = phi_matrix + (phi_seed - phi_matrix) * s;      return;
     }
 
   // Any unexpected index (shouldn't happen if num vars = 2)
@@ -115,10 +110,10 @@ customPDE<dim, degree>::setNonUniformDirichletBCs(
   [[maybe_unused]] double            &scalar_BC,
   [[maybe_unused]] Vector<double>    &vector_BC)
 {
-  // Intentionally left blank for incremental step.
-  //
-  // If later you want (example) u = u_infty on all outer boundaries:
-  //   if (index == 0) scalar_BC = u_infty;
-  //
-  // Or if you want phi fixed on boundaries, implement index == 1 here.
+  if (index == 0) // u
+{
+  scalar_BC = u0;   // far-field supersaturation from parameters.prm
+  return;
+}
+
 }
