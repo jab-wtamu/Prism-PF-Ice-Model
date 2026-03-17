@@ -1,10 +1,12 @@
 # =================================================================================
 # parameters.prm  
 # =================================================================================
+
+
 # =================================================================================
 # Set the number of dimensions (2 or 3 for a 2D or 3D calculation)
 # =================================================================================
-set Number of dimensions = 2
+set Number of dimensions = 3
 
 # =================================================================================
 # Set the length of the domain in all three dimensions
@@ -13,7 +15,7 @@ set Number of dimensions = 2
 # Each axes spans from zero to the specified length
 set Domain size X = 100
 set Domain size Y = 100
-set Domain size Z = 100
+set Domain size Z = 200
 
 # =================================================================================
 # Set the element parameters
@@ -25,7 +27,7 @@ set Subdivisions X = 3
 set Subdivisions Y = 3
 set Subdivisions Z = 3
 
-set Refine factor = 6
+set Refine factor = 4
 
 # Set the polynomial degree of the element (allowed values: 1, 2, or 3)
 set Element degree = 1
@@ -41,11 +43,11 @@ set Mesh adaptivity = true
 # only used to generate the first pass of the mesh as the initial conditions are
 # applied. It should be set somewhere between the max and min levels below.
 
-set Max refinement level = 6
+set Max refinement level = 7
 set Min refinement level = 3
 
 # Set the number of time steps between remeshing operations
-set Steps between remeshing operations = 5000
+set Steps between remeshing operations = 200
 
 # ---------------------------------------------------------------------------------
 # UPDATED: Refinement criterion now uses phi (ice interface) instead of old c/n
@@ -56,8 +58,8 @@ subsection Refinement criterion: phi
     set Criterion type = VALUE
     # For phi in [-1,+1], refine around the interface region.
     # You can tighten these later once you see your interface thickness.
-    set Value lower bound = -0.9
-    set Value upper bound =  0.9
+    set Value lower bound = -0.05
+    set Value upper bound =  0.05
 end
 
 # If you also want to refine based on supersaturation gradients later, add:
@@ -69,11 +71,11 @@ end
 # Set the time step parameters
 # =================================================================================
 # The size of the time step
-set Time step = 8.0e-4
+set Time step = 1e-5
 
 # The simulation ends when either the number of time steps is reached or the
 # simulation time is reached.
-set Number of time steps = 150000
+set Number of time steps = 100000
 
 # =================================================================================
 # Set the boundary conditions
@@ -84,7 +86,7 @@ set Number of time steps = 150000
 # ---------------------------------------------------------------------------------
 
 # Supersaturation: start with NATURAL (zero-flux) everywhere for incremental run
-set Boundary condition for variable u = NATURAL
+set Boundary condition for variable u = NON_UNIFORM_DIRICHLET
 
 # Phase field: NATURAL is typical (lets interface evolve without forcing)
 set Boundary condition for variable phi = NATURAL
@@ -97,20 +99,21 @@ set Boundary condition for variable phi = NATURAL
 # ---------------------------------------------------------------------------------
 
 # Centers for points 1 and 2 (used by phi initial condition)
-set Model constant center1 = (33.3333333333,33.3333333333,33.3333333333), TENSOR
-set Model constant center2 = (75,75,75), TENSOR
+set Model constant center1 = (50, 50, 100), TENSOR
+set Model constant center2 = (50, 50, 100), TENSOR
 
 # Radii for points 1 and 2
-set Model constant radius1 = 20.0, DOUBLE
+set Model constant radius1 = 0.0, DOUBLE
 set Model constant radius2 = 8.33333333333, DOUBLE
 
 # OPTIONAL (recommended): IC controls for new variables
 # If you include these, make sure custompde.h reads them (as shown earlier).
 # If you do NOT want them yet, you can delete these 3 lines.
 
-set Model constant u_initial  = 0.0, DOUBLE      # initial u everywhere
+set Model constant u_initial  = 0.8, DOUBLE      # initial u everywhere
 set Model constant phi_matrix = -1.0, DOUBLE     # phi in vapor
 set Model constant phi_seed   =  1.0, DOUBLE     # phi in ice seed
+
 
 # Reduced diffusion coefficient for u evolution (Demange Eq. 2 first RHS term)
 set Model constant Dtilde = 1.0, DOUBLE
@@ -119,11 +122,12 @@ set Model constant Dtilde = 1.0, DOUBLE
 set Model constant lambda = 3.0, DOUBLE
 
 set Model constant Lsat = 1.0, DOUBLE
-set Model constant Gamma  = 2.0, DOUBLE
+set Model constant Gamma  = 3.0, DOUBLE
 
 #NEW STEP 5
-set Model constant eps_xy = 0.0, DOUBLE
-set Model constant eps_z  = 0.0, DOUBLE
+set Model constant eps_xy = 0.1, DOUBLE
+set Model constant eps_z  = 0.5, DOUBLE
+set Model constant u0 = 0.8 , DOUBLE
 
 
 
@@ -135,5 +139,5 @@ set Model constant eps_z  = 0.0, DOUBLE
 # Set the output parameters
 # =================================================================================
 set Output condition = EQUAL_SPACING
-set Number of outputs = 10
-set Skip print steps = 1000
+set Number of outputs = 20
+set Skip print steps = 2000
