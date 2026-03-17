@@ -1,16 +1,16 @@
 #!/bin/bash
-#SBATCH --job-name=ice_mod1 
-#SBATCH --time=00:30:00
+#SBATCH --job-name=supplemental.ice 
+#SBATCH --time=12:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=16
 #SBATCH --mem=100G
 #SBATCH --partition=cpu
 #SBATCH --account=155847957282
-#SBATCH --output=ice_mod1.%j.out
+#SBATCH --output=supplemental.ice.%j.out
 
 module purge
 ml foss/2023b CMake/3.27.6 VTK/9.3.0
 
-cd /scratch/user/u.jb337251/phaseField-2.4.2/applications/ice_mod1/build
+cd /scratch/user/u.jb337251/phaseField-2.4.2/applications/supplemental.ice/build
 
 mpirun -n 16 ./main
