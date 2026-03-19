@@ -2,7 +2,6 @@
 // equations.cc  (ICE APP: u, phi)
 // =============================================================================================
 
-#endif
 
 // =================================================================================
 // Set the attributes of the primary field variables
@@ -140,7 +139,7 @@ scalargradType phix = variable_list.get_scalar_gradient(1); //  gradient ∇phi
 // ==============================================================================================  
 
 
-  auto compute_A_raw = [&](const scalargradType &n,
+  auto compute_A = [&](const scalargradType &n,
                        const double eps_xy_val,
                        const double eps_z_val) -> scalarvalueType {
     scalarvalueType A = constV(1.0);
@@ -177,192 +176,13 @@ scalargradType phix = variable_list.get_scalar_gradient(1); //  gradient ∇phi
 
     return A;
   };
-  // ==============================================================================================
-// Faceting algorithm (supplement): regularized A(n) to avoid missing orientations
-// ==============================================================================================
-
-// wrap theta into [-pi/6, +pi/6] (six-fold symmetry)
-auto wrap_theta = [&](double theta) -> double {
-  const double period = M_PI / 3.0;
-  theta = std::remainder(theta, period);
-  return theta;
-};
-
-// solve theta_m(psi) by bisection on (0, pi/6)
-auto solve_theta_m = [&](double eps_xy, double eps_z, double psi) -> double {
-  const double lo0 = 1e-8;
-  const double hi0 = M_PI/6.0 - 1e-8;
-
-  auto F = [&](double th) -> double {
-    const double lhs = 6.0*eps_xy*std::sin(6.0*th)*std::cos(th)/std::sin(th);
-    const double rhs = 1.0 + eps_xy*std::cos(6.0*th) + eps_z*std::cos(2.0*psi);
-    return lhs - rhs;
-  };
-
-  double lo = lo0, hi = hi0;
-  double flo = F(lo), fhi = F(hi);
-  if (flo*fhi > 0.0) return hi0;
-
-  for (int it=0; it<60; ++it) {
-    double mid = 0.5*(lo+hi);
-    double fmid = F(mid);
-    if (flo*fmid <= 0.0) { hi = mid; fhi = fmid; }
-    else                { lo = mid; flo = fmid; }
-  }
-  return 0.5*(lo+hi);
-};
-
-// solve psi_m(theta) by bisection on (0, pi)
-auto solve_psi_m = [&](double eps_xy, double eps_z, double theta) -> double {
-  const double lo0 = 1e-8;
-  const double hi0 = M_PI - 1e-8;
-
-  auto F = [&](double ps) -> double {
-    const double lhs = 2.0*eps_z*std::sin(2.0*ps)*std::cos(ps)/std::sin(ps);
-    const double rhs = 1.0 + eps_xy*std::cos(6.0*theta) + eps_z*std::cos(2.0*ps);
-    return lhs - rhs;
-  };
-
-  double lo = lo0, hi = hi0;
-  double flo = F(lo), fhi = F(hi);
-  if (flo*fhi > 0.0) return hi0;
-
-  for (int it=0; it<60; ++it) {
-    double mid = 0.5*(lo+hi);
-    double fmid = F(mid);
-    if (flo*fmid <= 0.0) { hi = mid; fhi = fmid; }
-    else                { lo = mid; flo = fmid; }
-  }
-  return 0.5*(lo+hi);
-};
-
-auto A_raw_from_angles = [&](double theta, double psi, double eps_xy, double eps_z) -> double {
-  return 1.0 + eps_xy*std::cos(6.0*theta) + eps_z*std::cos(2.0*psi);
-};
-
-auto compute_A_regularized = [&](const scalargradType &n,
-                                 const double eps_xy_val,
-                                 const double eps_z_val) -> scalarvalueType
-{
-  scalarvalueType A = constV(1.0);
-
-  for (unsigned int v = 0; v < A.size(); ++v)
-  {
-    const double nx = n[0][v];
-    const double ny = n[1][v];
-    const double nz = (dim == 3 ? n[2][v] : 0.0);
-
-    // θ in the basal plane, reduced by 6-fold symmetry
-    double theta = std::atan2(ny, nx);
-    theta = wrap_theta(theta);
-    const double abs_theta = std::abs(theta);
-
-    // ψ from c-axis
-    double psi = 0.0;
-    if constexpr (dim == 3)
-    {
-      const double r = std::sqrt(nx * nx + ny * ny);
-      psi = std::atan2(r, nz);
-    }
-
-    // distance to nearest pole for sector detection / polar regularization
-    double psi_eff = psi;
-    if constexpr (dim == 3)
-      psi_eff = std::min(psi, M_PI - psi);
-
-    // missing-orientation thresholds
-    const double eps_xy_m = (1.0 + eps_z_val  * std::cos(2.0 * psi_eff)) / 35.0;
-    const double eps_z_m  = (1.0 + eps_xy_val * std::cos(6.0 * theta))   / 3.0;
-
-    const bool miss_theta = (eps_xy_val > eps_xy_m);
-    const bool miss_psi   = (eps_z_val  > eps_z_m);
-
-    // no missing orientations -> raw A
-    if (!miss_theta && !miss_psi)
-    {
-      A[v] = A_raw_from_angles(theta, psi, eps_xy_val, eps_z_val);
-      continue;
-    }
-
-    double theta_m = 0.0;
-    if (miss_theta)
-      theta_m = solve_theta_m(eps_xy_val, eps_z_val, psi_eff);
-
-    double psi_m = 0.0;
-    if (miss_psi)
-      psi_m = solve_psi_m(eps_xy_val, eps_z_val, theta);
-
-    const bool in_theta_sector = miss_theta && (abs_theta < theta_m);
-    const bool in_psi_sector   = miss_psi   && (psi_eff   < psi_m);
-
-    // outside regularized sectors -> raw A
-    if (!in_theta_sector && !in_psi_sector)
-    {
-      A[v] = A_raw_from_angles(theta, psi, eps_xy_val, eps_z_val);
-      continue;
-    }
-
-    double A_theta = 0.0;
-    if (miss_theta)
-    {
-      const double s = std::sin(theta_m);
-      const double B1 = (s != 0.0) ? (6.0 * eps_xy_val * std::sin(6.0 * theta_m) / s) : 0.0;
-      const double A1 = 1.0
-                      + eps_xy_val * std::cos(6.0 * theta_m)
-                      + eps_z_val  * std::cos(2.0 * psi)
-                      - B1 * std::cos(theta_m);
-
-      A_theta = A1 + B1 * std::cos(abs_theta);
-    }
-
-    double A_psi = 0.0;
-    if (miss_psi)
-    {
-      const double s = std::sin(psi_m);
-      const double B2 = (s != 0.0) ? (2.0 * eps_z_val * std::sin(2.0 * psi_m) / s) : 0.0;
-      const double A2 = 1.0
-                      + eps_xy_val * std::cos(6.0 * theta)
-                      + eps_z_val  * std::cos(2.0 * psi_m)
-                      - B2 * std::cos(psi_m);
-
-      A_psi = A2 + B2 * std::cos(psi_eff);
-    }
-
-    if (in_theta_sector && in_psi_sector)
-    {
-      const double dth = abs_theta - theta_m;
-      const double dps = psi_eff - psi_m;
-      const double denom = std::sqrt(dth * dth + dps * dps) + 1e-30;
-      const double alpha = std::abs(dth) / denom;
-      A[v] = alpha * A_theta + (1.0 - alpha) * A_psi;
-    }
-    else if (in_theta_sector)
-    {
-      A[v] = A_theta;
-    }
-    else
-    {
-      A[v] = A_psi;
-    }
-  }
-
-  return A;
-};
-  
-// ===========================================================================================
-                                // STEP 6
-// ===========================================================================================
-
-// Compute n, A(n), B(n) from the Γ-scaled gradient, not the raw gradient
-const scalargradType nvec = compute_normal(phix_gamma);
+// STEP 6
+  // Compute n, A(n), B(n) using Γ-gradient (paper-consistent)
+const scalargradType nvec = compute_normal(phix);
 const scalarvalueType Bn  = compute_B(nvec, Gamma);
+[[maybe_unused]] const scalarvalueType An = compute_A(nvec, eps_xy, eps_z);
 
-const bool use_faceting_regularization = true; // set false to use raw A(n)
-
-[[maybe_unused]] const scalarvalueType An =
-  use_faceting_regularization
-    ? compute_A_regularized(nvec, eps_xy, eps_z)
-    : compute_A_raw(nvec, eps_xy, eps_z);
+ 
 
  // ===========================================================================================
 // STEP 1 : u diffusion only, with Γ-anisotropy in 3D via flux tensor KΓ = diag(1,1,Γ^2)
@@ -411,24 +231,21 @@ if constexpr (dim == 3)
   //   phi^{n+1} = phi^n + dt * ( f'(phi^n) + lambda * g'(phi^n) * u^n )
   // ===========================================================================================
 
- // Double-well derivative:
-// f'(phi) = -phi + phi^3
-scalarvalueType fprime = -phi + phi * phi * phi;
+  // f'(phi) for f(phi) = -phi^2/2 + phi^4/4  =>  f'(phi) = -phi + phi^3
+  scalarvalueType fprime = -phi + phi * phi * phi;
 
-// Allen-Cahn driving term used here is -f'(phi) = phi - phi^3
-scalarvalueType doublewell_drive = -fprime;
-
-// g'(phi) used by Demange
-scalarvalueType one_minus_phi2 = constV(1.0) - phi * phi;
-scalarvalueType gprime         = one_minus_phi2 * one_minus_phi2;
+  // g'(phi) used by Demange: g'(phi) = (1 - phi^2)^2
+  scalarvalueType one_minus_phi2 = constV(1.0) - phi * phi;
+  scalarvalueType gprime         = one_minus_phi2 * one_minus_phi2;
   
   // ===========================================================================================
 
                         // STEP 6
 
   // ===========================================================================================
-// Local RHS for phi
-scalarvalueType rhs_phi = doublewell_drive + constV(lambda) * Bn * gprime * u;
+//Local RHS for phi (paper form): includes B(n)
+// CHANGE: multiply coupling by Bn to activate kinetic anisotropy
+scalarvalueType rhs_phi = (-fprime) + constV(lambda)*Bn*gprime*u;
 
 // STEP NEXT: paper form is  A(n)^2 * dphi/dt = rhs_phi
 //          => dphi/dt = rhs_phi / A(n)^2
@@ -454,10 +271,13 @@ scalarvalueType eq_phi = phi + constV(userInputs.dtValue) * rhs_phi_scaled;
 //
 // ===========================================================================================
 
-// Build F2 from the Γ-scaled gradient consistently with n, A(n), and stiffness
+// Build F2 = (1/2) * A(n)^2 * (KΓ ∇phi)
 scalargradType F2;
 for (unsigned int d = 0; d < dim; ++d)
-  F2[d] = phix_gamma[d] * (An2 * constV(0.5));
+  F2[d] = phix[d] * (An2 * constV(0.5));
+
+if constexpr (dim == 3)
+  F2[2] = phix[2] * (An2 * constV(0.5 * Gamma * Gamma));
 
 // Now apply the global (dt / A^2) scaling to the divergence term:
 // eqx_phi = -(dt/A^2) * F2
@@ -481,27 +301,22 @@ for (unsigned int d = 0; d < dim; ++d)
 // ===========================================================================================
 
 // Toggle on/off while debugging
-const bool enable_stiffness = false;
+const bool enable_stiffness = true;
 
 if (enable_stiffness)
 {
   // ---- helper: compute A^2 given a gradient g (g treated as ∇_Γ φ) ----
   auto A2_from_grad = [&](const scalargradType &g) -> scalarvalueType {
-  const scalargradType n_tmp  = compute_normal(g);
-  const scalarvalueType A_tmp =
-    use_faceting_regularization
-      ? compute_A_regularized(n_tmp, eps_xy, eps_z)
-      : compute_A_raw(n_tmp, eps_xy, eps_z);
+    const scalargradType n_tmp  = compute_normal(g);                 // n = -g/|g|
+    const scalarvalueType A_tmp = compute_A(n_tmp, eps_xy, eps_z);    // A(n)
+    return A_tmp * A_tmp;                                            // A^2
+  };
 
-  return A_tmp * A_tmp;
-};
+  const scalargradType g0 = phix;                              // g = ∇ φ
 
-// Use the Γ-scaled gradient consistently in the anisotropy derivative
-const scalargradType g0 = phix_gamma;
-
-scalarvalueType g0_mag2 = constV(0.0);
-for (unsigned int d = 0; d < dim; ++d)
-  g0_mag2 = g0_mag2 + g0[d] * g0[d];
+  scalarvalueType g0_mag2 = constV(0.0);
+  for (unsigned int d = 0; d < dim; ++d)
+    g0_mag2 = g0_mag2 + g0[d] * g0[d];
 
   // Skip stiffness away from the interface (reduces noise + cost)
   const double g2_threshold = 1e-10;
@@ -544,7 +359,11 @@ for (unsigned int d = 0; d < dim; ++d)
   F_stiff[d] = dA2_dg[d] * (g0_mag2 * constV(-0.5 * userInputs.dtValue));
 }
 
-
+// Apply KΓ to stiffness flux the same way as F2/u-diffusion (ONLY if g0 = phix)
+if constexpr (dim == 3)
+{
+  F_stiff[2] = F_stiff[2] * constV(Gamma * Gamma);
+}
 
 // Add to existing phi gradient flux (NO extra dt; dt is already inside F_stiff)
 for (unsigned int d = 0; d < dim; ++d)
