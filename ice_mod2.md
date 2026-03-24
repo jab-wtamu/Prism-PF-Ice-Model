@@ -1,152 +1,275 @@
-# Phase-field evolution (Demange ice-growth model)
-## 1. Strong form (kinetics)
-The phase-field equation governing ice growth is given by (Demange et al.):
-**(Eq.1)**
+# Implementation steps for the Demange ice-growth model
 
+## 1. New app plumbing with only $u$ and $\phi$
 
-$$A(\mathbf{n})^2 \frac{\partial \phi}{\partial t}
-=f'(\phi)
-+\lambda B(\mathbf{n}) g'(\phi)\,u
-+\frac{1}{2}\nabla_\Gamma \cdot \left(
-|\nabla \phi|^2
-\frac{\partial \left(A(\mathbf{n})^2\right)}{\partial (\nabla \phi)}
-\right)
-+\nabla_\Gamma \cdot \left(
-A(\mathbf{n})^2 \nabla_\Gamma \phi
-\right)$$
+### Goal
 
-where:
-* $\phi$ is the phase-field variable,
-* $u$ is the supersaturation,
-* n is $- \nabla \phi /|\nabla \phi|,$
-* $\nabla_\Gamma=(\partial_x,\; \partial_y,\; \Gamma\,\partial_z)$
-* A(n) and B(n) encode anisotropy
+Start a new application with only two primary scalar fields and confirm PRISMS-PF runs and outputs them.
 
-**Equation (2): Supersaturation evolution**
+### What changed
 
-$$\partial_t u=\tilde{D}\,\nabla_\Gamma \cdot \left( q(\phi)\,\nabla_\Gamma u \right)-
-\frac{L_{\mathrm{sat}}}{2}\,B(\mathbf{n})\,\partial_t \phi.$$
+In `loadVariableAttributes()`:
 
-where $u$ is the supersaturation field,
+* Variable $0$ renamed to $u$
+* Variable $1$ renamed to $\phi$
+* Both set as `SCALAR` and `EXPLICIT_TIME_DEPENDENT`
+* No physics added yet; this step only makes the app recognize the fields
 
-$q(\phi)=1-\phi,$
-$\mathbf{n}=-\frac{\nabla \phi}{|\nabla \phi|},$
-$\nabla_\Gamma = (\partial_x,\partial_y,\Gamma\,\partial_z).$
+---
 
+## 2. First part of Eq. (2): diffusion term for $u$
 
+### Goal
 
-## Time discretization (Forward Euler)
-Using explicit Forward Euler time stepping:
-(Eq.1)
+Implement only the diffusion-like part of the supersaturation equation:
 
+* only the diffusion term,
+* use the standard gradient $\nabla$ instead of $\nabla_\Gamma$,
+* no coupling term yet.
 
-where:
-
-$$F_1^n=\frac{1}{2}\,|\nabla \phi^n|^2
-\frac{\partial\!\left((A^n)^2\right)}{\partial (\nabla \phi^n)},      
-F_2^n=(A^n)^2 \nabla_\Gamma \phi^n.$$
-
-Solving for $\phi^{n+1}$:
-
-$$\phi^{n+1}=\phi^n + \frac{\Delta t}{(A^n)^2}[f'(\phi^n)+ \lambda B^n g'(\phi^n)\,u^n + \nabla_\Gamma \cdot F_1^n + \nabla_\Gamma \cdot F_2^n]$$
-
-**(Eq.2)**
-
-$$u^{n+1}=
-u^n+
-\Delta t\,\tilde{D}\,\nabla_\Gamma \cdot \left(
-q(\phi^n)\,\nabla_\Gamma u^n
-\right)-\Delta t\
-\frac{L_{\mathrm{sat}}}{2}\,B^n\,(\phi^{n+1}-\phi^n).$$
-
-where:
-
-$$q(\phi^n)=1-\phi^n,
-\qquad
-B^n = B(\mathbf{n}^n),
-\qquad
-\mathbf{n}^n=-\frac{\nabla \phi^n}{|\nabla \phi^n|}.
-$$
-
-
-
-
-
-
-## Weak Formulation
-**(Eq.1)**
+### Physics added
 
 $$
-\int_\Omega w \phi^{n+1} \, dV=\int_\Omega w (\phi^n+\frac{\Delta t}{(A^n)^2}(f'(\phi^n)+ \lambda B^n g'(\phi^n) u^n))dV-\int_\Omega
-\frac{\Delta t}{(A^n)^2}
-\nabla_\Gamma w \cdot F_1^n \, dV - \int_\Omega
-\frac{\Delta t}{(A^n)^2}
-\nabla_\Gamma w \cdot F_2^n \, dV.
-$$
-Weak form becomes:
-$$
-\int_\Omega w\,\phi^{n+1}\,dV=\int_\Omega [
-w\,r_{\phi}+ \nabla_\Gamma w \cdot r_{\phi x}]
- dV.
-$$
-Residual form:
-$$
-r_\phi=\phi^n+\frac{\Delta t}{(A^n)^2}
-[f'(\phi^n)+ \lambda B^n g'(\phi^n)\,u^n
-]
-$$
-$$r_{\phi x}=-\frac{\Delta t}{(A^n)^2}
-(F_1^n+ F_2^n
-).
+\partial_t u=\widetilde{D}\,\nabla\cdot\left(q(\phi)\nabla u\right)
 $$
 
-**(Eq.2)**
+with
 
-$$\int_\Omega w\,u^{n+1}\,dV
-=\int_\Omega w\,u^n\,dV+\int_\Omega w\,\Delta t\,\tilde{D}\,\nabla_\Gamma\!\cdot
-\left(q(\phi^n)\nabla_\Gamma u^n\right)\,dV-\int_\Omega w\,\frac{L_{\mathrm{sat}}}{2}\,B^n(\phi^{n+1}-\phi^n)\,dV.$$
+$$
+q(\phi)=1-\phi.
+$$
 
-Applying integration by parts to the diffusion term and assuming periodic
-or no-flux boundary conditions,
+---
 
-$$\int_\Omega w\,\nabla_\Gamma\cdot \mathbf{H}\,dV=\int_{\partial \Omega} w\,(\mathbf{H}\cdot \mathbf{n}_{\Gamma})\,dS-\int_\Omega \nabla_\Gamma w\cdot \mathbf{H}\,dV,
-\qquad
-\mathbf{H}=q(\phi^n)\nabla_\Gamma u^n.$$
+## 3. First part of Eq. (1): local source term for $\phi$ with anisotropy off
 
-Substituting into the weak form gives:
+### Goal
 
-$$\int_{\Omega} w\,u^{n+1}\,dV=\int_{\Omega}[w\,u^{n}-
-\Delta t\,\tilde{D}\,\nabla_{\Gamma} w \cdot
-( q(\phi^{n})\,\nabla_{\Gamma} u^{n})-
-w\,
-\Delta t\
-\frac{L_{\mathrm{sat}}}{2}\,B^{n}\,
-( \phi^{n+1} - \phi^{n}] dV.$$
+Add the simplest local part of the phase-field equation:
 
-final weak form:
-$$\int_\Omega w\,u^{n+1}\,dV=
-\int_\Omega \left(
-w\,r_u+
-\nabla_\Gamma w \cdot r_{ux}
-\right)\,dV.$$
+* only the local driving/source term,
+* anisotropy off, so $A(\mathbf{n})=1$ and $B(\mathbf{n})=1$,
+* no divergence anisotropy terms yet.
 
-Residual form:
-$$r_u=
-u^n-
-\frac{L_{\mathrm{sat}}}{2}\,B^n(\phi^{n+1}-\phi^n),
-\qquad
-r_{ux}=
--\Delta t\,\tilde{D}\,q(\phi^n)\nabla_\Gamma u^n.$$
+### Physics added
 
+$$
+\partial_t \phi=f'(\phi)+\lambda g'(\phi)\,u.
+$$
 
+with typical choices
 
+$$
+f'(\phi)=-\phi+\phi^3
+$$
 
+and
 
+$$
+g'(\phi)=(1-\phi^2)^2.
+$$
 
+---
 
+## 4. Add Laplacian smoothing term for $\phi$
 
+### Physics added
 
+$$
+\nabla\cdot(\nabla\phi).
+$$
 
+In weak form, this contributes a flux proportional to
 
+$$
+-\nabla\phi.
+$$
 
+### Verification
 
+* $\phi$ began to show smooth interface evolution
+* this was the first step where the phase field behaved like a diffuse interface instead of only reacting locally
+
+---
+
+## 5. Add $u$--$\phi$ coupling back into $u$: latent heat term
+
+### Physics added
+
+$$
+u^{n+1}=u^n-\frac{L_{\mathrm{sat}}}{2}\left(\phi^{n+1}-\phi^n\right).
+$$
+
+---
+
+## 6. Add anisotropy scaffolding: define $\nabla_\Gamma$, compute $\mathbf{n}$, $A(\mathbf{n})$, and $B(\mathbf{n})$
+
+### Definitions added
+
+The anisotropic gradient operator:
+
+$$
+\nabla_\Gamma=(\partial_x,\partial_y,\Gamma\,\partial_z).
+$$
+
+The anisotropy factor $B(\mathbf{n})$:
+
+$$
+B(\mathbf{n})=\sqrt{n_x^2+n_y^2+\Gamma^2 n_z^2}.
+$$
+
+The anisotropy factor $A(\mathbf{n})$ in the paper form:
+
+$$
+A(\mathbf{n})=1+\epsilon_{xy}\cos(6\theta)+\epsilon_z\cos(2\psi).
+$$
+
+### What changed
+
+Added helper code to compute:
+
+* $\nabla_\Gamma$
+* interface normal $\mathbf{n}$
+* $A(\mathbf{n})$
+* $B(\mathbf{n})$
+
+Added parameters/constants in `customPDE.h` and `parameters.prm`:
+
+* $\Gamma$
+* $\epsilon_{xy}$
+* $\epsilon_z$
+
+---
+
+## 7. Turn on $B(\mathbf{n})$ in the $\phi$ source term and apply $1/A(\mathbf{n})^2$ scaling
+
+### Goal
+
+Activate the paper's kinetic anisotropy in the local source term:
+
+* multiply the coupling by $B(\mathbf{n})$,
+* scale the time derivative term by $1/A(\mathbf{n})^2$.
+
+### Physics added
+
+Starting from
+
+$$
+A(\mathbf{n})^2\partial_t\phi=f'(\phi)+\lambda B(\mathbf{n})g'(\phi)\,u,
+$$
+
+solve for $\partial_t\phi$ to obtain
+
+$$
+\partial_t\phi=
+\frac{f'(\phi)+\lambda B(\mathbf{n})g'(\phi)\,u}{A(\mathbf{n})^2}.
+$$
+
+---
+
+## 8. Implement $\Gamma$-consistent weak-form fluxes and run 3D tests
+
+### Goal
+
+Ensure that $\nabla_\Gamma$ is implemented correctly in weak form.
+
+For an operator of the form
+
+$$
+\nabla_\Gamma\cdot\left(q\nabla_\Gamma u\right),
+$$
+
+the weak form implies a $\Gamma^2$ scaling in the $z$ component of the flux.
+
+### Flux form
+
+In 3D, the correct flux behaves as
+
+$$
+q(\phi)\left(u_x,u_y,\Gamma^2 u_z\right).
+$$
+
+### Verification
+
+* ran 3D nucleation tests with two seeds
+* in ParaView, $\phi$ isosurfaces showed two nuclei as expected
+* the $u$ field smoothed and spread as expected for diffusion
+
+---
+
+## 9. Fix the paper normal definition
+
+### Goal
+
+Match the paper's definition of the interface normal used inside $A(\mathbf{n})$ and $B(\mathbf{n})$.
+
+### Physics corrected
+
+$$
+\mathbf{n}=-\frac{\nabla\phi}{|\nabla\phi|}.
+$$
+
+This replaced using $\nabla_\Gamma\phi$ inside the normal definition.
+
+---
+
+## 10. Turn on full Eq. (2) coupling anisotropy in $u$
+
+### Goal
+
+Match the orientation dependence in Eq. (2) of the paper.
+
+### Physics updated
+
+From
+
+$$
+u^{n+1}=u^n-\frac{L_{\mathrm{sat}}}{2}\left(\phi^{n+1}-\phi^n\right)
+$$
+
+to
+
+$$
+u^{n+1}=u^n-\frac{L_{\mathrm{sat}}}{2}B(\mathbf{n})\left(\phi^{n+1}-\phi^n\right).
+$$
+
+---
+
+## 11. Rewrite the $\phi$ Laplacian/$F_2$ term in the paper's explicit-update form
+
+### Paper structure used
+
+$$
+\phi^{n+1}=\phi^n+\frac{\Delta t}{A(\mathbf{n})^2}
+\left[
+\text{local}
++\nabla_\Gamma\cdot(F_1+F_2)
+\right].
+$$
+
+with
+
+$$
+F_2=A(\mathbf{n})^2\nabla_\Gamma\phi.
+$$
+
+This puts the $F_2$ contribution into the same explicit-update layout as the paper.
+
+---
+
+## 12. Add the hard-anisotropy or stiffness term $F_1$
+
+### Goal
+
+Add the missing anisotropic stiffness-like divergence term responsible for stronger faceting and branching behavior.
+
+### Physics added
+
+$$
+\frac{1}{2}\nabla_\Gamma\cdot\left(
+|\nabla\phi|^2
+\frac{\partial\left(A(\mathbf{n})^2\right)}{\partial(\nabla\phi)}
+\right).
+$$
+
+This is the $F_1$-type contribution from the Demange formulation.
