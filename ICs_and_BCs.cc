@@ -91,7 +91,14 @@ scalar_IC = base + amp * std::exp(-r2 / (2.0 * sigma * sigma));
 scalar_IC = phi_matrix + (phi_seed - phi_matrix) * s;      return;
     }
 
-  // Any unexpected index (shouldn't happen if num vars = 2)
+  // xi1 IC (variable 2)
+  if (index == 2)
+    {
+      scalar_IC = 0.0;
+      return;
+    }
+
+  // Any unexpected index (shouldn't happen if num vars = 3)
   scalar_IC = 0.0;
 }
 
