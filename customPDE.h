@@ -99,4 +99,9 @@ double eps_xy = userInputs.get_model_constant_double("eps_xy");    // ε_xy
 double eps_z  = userInputs.get_model_constant_double("eps_z");     // ε_z
 
 
+  double u_initial = userInputs.get_model_constant_double("u_initial");
+  double phi_matrix = userInputs.get_model_constant_double("phi_matrix");
+  double phi_seed = userInputs.get_model_constant_double("phi_seed");
+  double u0 = userInputs.get_model_constant_double("u0");
+
 };

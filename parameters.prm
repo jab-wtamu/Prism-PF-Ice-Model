@@ -90,6 +90,7 @@ set Boundary condition for variable u = NON_UNIFORM_DIRICHLET
 
 # Phase field: NATURAL is typical (lets interface evolve without forcing)
 set Boundary condition for variable phi = NATURAL
+set Boundary condition for variable xi1 = NATURAL
 
 # =================================================================================
 # Set the model constants
