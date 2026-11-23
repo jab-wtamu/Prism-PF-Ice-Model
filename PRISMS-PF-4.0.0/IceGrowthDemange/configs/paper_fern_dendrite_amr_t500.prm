@@ -1,0 +1,65 @@
+# Paper Fern Dendrite - AMR ON - T500
+# Domain 320 x 320 x 51.2; Q2 refinement 3; Natural boundaries
+# dt 0.0004; 12500 steps; T=500
+
+# dim = 3 and degree = 2 are compile-time constants in main.cc (do not add set dim / set degree).
+set global refinement = 3
+set mesh type = rectangular
+subsection Rectangular mesh
+  set x size = 320
+  set y size = 320
+  set z size = 51.2
+  set x subdivisions = 25
+  set y subdivisions = 25
+  set z subdivisions = 4
+end
+
+set mesh adaptivity = true
+set max refinement = 3
+set min refinement = 0
+set remeshing period = 2500
+subsection refinement criterion: 0
+  set variables = phi
+  set type = value
+  set value lower bound = -0.99
+  set value upper bound = 0.99
+end
+
+set time step = 0.0004
+set number steps = 1250000
+subsection output
+  set condition = EQUAL_SPACING
+  set number = 100
+end
+
+# Natural (zero-flux, F.nu = 0) on all six outer faces for u, phi, xi1. Full domain: these are the
+# outer walls of the box, not symmetry planes.
+subsection boundary conditions: 0
+  set variables = u, phi, xi1
+  set conditions = Natural, Natural, Natural, Natural, Natural, Natural
+end
+
+# ---- fern physics (verified FERN224 values; D_tilde = 0.6267 lambda)
+set Model constant u0 = 0.8, DOUBLE
+set Model constant eps_xy = 0.2, DOUBLE
+set Model constant eps_z = 0.05, DOUBLE
+set Model constant Gamma = 0.5, DOUBLE
+set Model constant lambda = 3.0, DOUBLE
+set Model constant D_tilde = 1.8801, DOUBLE
+set Model constant Lsat = 1.6, DOUBLE
+
+# ---- corrected-model switches (PPF 4.0 Physics Update docs/DERIVATIONS.md sections H, Q, G, P)
+set Model constant half_convention = variational, STRING
+set Model constant q_normalization = one_sided, STRING
+set Model constant gamma_structure = demange_literal, STRING
+set Model constant anisotropy = pole_regular, STRING
+set Model constant pole_weight = sin6, STRING
+
+# ---- initial condition: disc germ centred in the full domain
+set Model constant seed = disc, STRING
+set Model constant seed_center_x = 160, DOUBLE
+set Model constant seed_center_y = 160, DOUBLE
+set Model constant seed_center_z = 25.6, DOUBLE
+set Model constant ic_interface_width = 1.0, DOUBLE
+set Model constant disc_radius = 6.4, DOUBLE
+set Model constant disc_half_thickness = 1.6, DOUBLE

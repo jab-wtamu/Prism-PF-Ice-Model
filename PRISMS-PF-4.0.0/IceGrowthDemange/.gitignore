@@ -1,0 +1,17 @@
+# Simulation outputs and HPC artifacts
+build/
+runs/
+logs/
+*.vtu
+*.pvtu
+*.vtk
+*.bin
+*.h5
+*.xdmf
+slurm-*.out
+slurm-*.err
+*.log
+*.tmp
+core*
+.DS_Store
+__pycache__/
