@@ -1,21 +1,14 @@
-// Snow crystal growth (Demange et al.) -- PRISMS-PF 4.0.0, 3D only -- IceGrowthDemange.
+// Demange snow-crystal growth model -- PRISMS-PF 4.0.0, 3D.
 //
-// Modular-only application: the corrected research model of "PPF 4.0 Physics Update" (its
-// implementation = modular), which is the only code path here. Mathematics, evidence and tests:
-// docs/DERIVATIONS.md and docs/PHYSICS_VERIFICATION_REPORT.md of PPF 4.0 Physics Update. Every source
-// ambiguity is a named STRING switch so the literal [P] choices stay reproducible:
-//                  half_convention  variational     | demange_literal   (section H)
-//                  q_normalization  one_sided       | demange_literal   (section Q)
-//                  gamma_structure  demange_literal | stretched_variational (section G)
-//                  anisotropy       pole_regular    | supplement_literal    (sections P, R)
-//                  pole_weight      sin6 | sin4 | sin8 | quintic            (section P)
+// The modular phase-field formulation provides configurable conventions:
+//   half_convention: variational | demange_literal
+//   q_normalization: one_sided | demange_literal
+//   gamma_structure: demange_literal | stretched_variational
+//   anisotropy: pole_regular | supplement_literal
+//   pole_weight: sin6 | sin4 | sin8 | quintic
 //
-// The verbatim PF3-frozen code path (implementation = pf3_frozen, snow_anisotropy.h and the Model
-// constant regval) was removed.
-//
-// A parameters file must list exactly the Model constants the model reads (the seed geometry only for
-// the selected seed): missing and unused constants are both errors, so a run's parameter file fully
-// documents the model that produced it.
+// Required Model constants are validated at initialization. Missing and unused
+// constants are rejected to keep configurations reproducible.
 
 #pragma once
 
@@ -308,7 +301,7 @@ private:
         // Hollow hexagonal prism (PF3 geometry). hex_radius <= R is a hexagon with apothem R.
         // PF3 orientation: facet normals at theta = 0, 60 deg (maxima of A). model_consistent swaps
         // x and y: facet normals at 30, 90 deg (minima of A, where the Wulff shape has its facets),
-        // vertices along theta = 0 (DERIVATIONS.md section I).
+        // vertices along theta = 0.
         double ax = std::abs(dx);
         double ay = std::abs(dy);
         if (hex_swap_xy)
@@ -334,13 +327,13 @@ private:
     compute_rhs_modular(variable_list, sim_timer, solve_block_id);
   }
 
-  // Corrected model (docs/DERIVATIONS.md section E), explicit scheme of [Prof]:
+  // Explicit time-integration scheme for the phase-field formulation:
   //   block 0 (old values):  phi^{n+1} = phi^n + dt xi1^n / A^2
   //                          u^{n+1}   = u^n + dt div F2 - (Lsat/2) B (phi^{n+1} - phi^n)
   //                          F2 = D_tilde q(phi) G^T G grad u,  q = q_factor (1 - phi)
   //   block 1 (new values):  xi1 = phi - phi^3 + lambda B g'(phi) u + div F1,  g' = (1 - phi^2)^2
   //                          F1 = G^T (1/2 |g|^2 dA^2/dg + c_i A^2 G grad phi)   (demange_anisotropy.h)
-  // Weak form: value terms r, gradient terms r_x = -F (natural BC F.nu = 0; section W).
+  // Weak form: value terms r, gradient terms r_x = -F (natural BC F.nu = 0).
   void
   compute_rhs_modular(FieldContainer<dim, degree, number> &variable_list,
                       const SimulationTimer               &sim_timer,
@@ -427,14 +420,14 @@ private:
   number D_tilde;
   number Lsat;
 
-  // Switches (docs/DERIVATIONS.md)
+  // Model formulation options
   std::string half_convention;
   std::string q_normalization;
   std::string gamma_structure;
   std::string anisotropy_model;
   std::string pole_weight;
 
-  // Initial condition (modular path)
+  // Initial-condition parameters
   std::string           seed;
   std::string           seed_hex_orientation;
   std::array<double, 3> seed_center;
