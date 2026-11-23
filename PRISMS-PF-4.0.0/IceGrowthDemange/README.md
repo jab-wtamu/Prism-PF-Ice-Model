@@ -8,12 +8,12 @@ model parameters and numerical setup.
 ## Files
 
 - `main.cc` — declares the model fields and computational workflow.
-- `custom_pde.h` — corrected Demange phase-field model and initial conditions.
+- `custom_pde.h` — Demange phase-field equations and initial conditions.
 - `demange_anisotropy.h` — anisotropy calculations.
 - `CMakeLists.txt` — build definition.
-- `configs/paper_fern_dendrite_amr_t500.prm` — the **single** Fern configuration.
-- `build.sh` — portable *convenience* build wrapper for an installed PRISMS-PF/deal.II environment.
-- `run_fern.sb` — portable *convenience* ACES-style Slurm launcher.
+- `configs/paper_fern_dendrite_amr_t500.prm` — Fern simulation parameters.
+- `build.sh` — example build script for PRISMS-PF and deal.II.
+- `run_fern.sb` — example Slurm launcher for an ACES-style environment.
 - `.gitignore` — prevents accidental commits of build and run outputs.
 
 The build and Slurm scripts are example wrappers. Configure the environment,
@@ -42,9 +42,8 @@ periodic boundaries. The choices for `half_convention`, `q_normalization`, and a
 are explicit model settings; this is **not an exact numerical reproduction**
 of the published simulation.
 
-The model target of T=500 is the configured stopping time; it does **not**
-mean the original AMR-ON production run completed T=500 within its 72-hour
-walltime limit.
+T=500 is the configured stopping time. A scheduler walltime limit may prevent
+an individual job from reaching that target.
 
 ## Build and launch
 
