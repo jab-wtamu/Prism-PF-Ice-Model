@@ -1,9 +1,8 @@
-# Demange Ice Growth Model — Fern Dendrite (PRISMS-PF 4.0.0)
+# Demange Ice Growth Model — PRISMS-PF 4.0.0
 
-This application provides a 3D Fern dendrite simulation on a
-**320 × 320 × 51.2** physical domain with **adaptive mesh refinement (AMR) enabled**.
-The configuration in `configs/paper_fern_dendrite_amr_t500.prm` specifies the
-model parameters and numerical setup.
+This application models three-dimensional snow-crystal growth using a phase-field
+formulation. Two adaptive-mesh-refinement (AMR) configurations are provided:
+a Fern dendrite and a Hollow Prism.
 
 ## Files
 
@@ -12,6 +11,7 @@ model parameters and numerical setup.
 - `demange_anisotropy.h` — anisotropy calculations.
 - `CMakeLists.txt` — build definition.
 - `configs/paper_fern_dendrite_amr_t500.prm` — Fern simulation parameters.
+- `configs/hollow_Gamma3_U128_T100_AMR_ON_dt2e4.prm` — Hollow Prism simulation parameters.
 - `build.sh` — example build script for PRISMS-PF and deal.II.
 - `run_fern.sb` — example Slurm launcher for an ACES-style environment.
 - `.gitignore` — prevents accidental commits of build and run outputs.
@@ -19,7 +19,7 @@ model parameters and numerical setup.
 The build and Slurm scripts are example wrappers. Configure the environment,
 library paths, and scheduler options for the target system before use.
 
-## Numerical setup
+## Fern dendrite numerical setup
 
 | Setting | Value |
 |---|---|
@@ -45,6 +45,21 @@ of the published simulation.
 T=500 is the configured stopping time. A scheduler walltime limit may prevent
 an individual job from reaching that target.
 
+## Hollow Prism numerical setup
+
+| Setting | Value |
+|---|---|
+| Geometry | 51.2 × 51.2 × 102.4 |
+| Initial mesh subdivisions | 4 × 4 × 8 |
+| Initial global refinement | 5 |
+| Spatial method | Q2 finite elements in 3D |
+| AMR | ON, levels 0–5; remeshing every 2,500 increments |
+| Refinement indicator | Phase-field `phi` in [-0.99, 0.99] |
+| Time step | 0.0002 |
+| Configured final time | T=100 (500,000 increments) |
+| Boundary conditions | Natural (zero normal flux) on all outer faces |
+| Initial seed | Disc radius 3.2; half-thickness 1.6 |
+
 ## Build and launch
 
 Build with a compatible PRISMS-PF 4.0.0 and deal.II installation:
@@ -61,5 +76,9 @@ From the application folder, submit a simulation with the appropriate Slurm acco
 sbatch --account=YOUR_ACES_ACCOUNT run_fern.sb configs/paper_fern_dendrite_amr_t500.prm Fern_320_AMR_ON
 ```
 
-Outputs from the example launcher go under `runs/Fern_320_AMR_ON/`.
+To run the Hollow Prism configuration, use the same application executable
+with the corresponding parameter file. The included Slurm launcher retains
+the job name `Fern`; adjust its job label when using the Hollow configuration.
+
+Outputs from the Fern example launcher go under `runs/Fern_320_AMR_ON/`.
 The launcher does not overwrite a preexisting run directory.
