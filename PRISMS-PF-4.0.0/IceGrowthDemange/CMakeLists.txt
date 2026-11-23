@@ -50,7 +50,6 @@ target_sources(
 )
 
 # Require C++20
-# TODO: Remove this
 target_compile_features(${APPLICATION_NAME} PRIVATE cxx_std_20)
 set_target_properties(
   ${APPLICATION_NAME}
