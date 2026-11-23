@@ -9,7 +9,7 @@
 #SBATCH --partition=cpu
 #SBATCH --output=slurm-%x-%j.out
 #SBATCH --error=slurm-%x-%j.err
-# Minimal launch wrapper; no field conversion or restart machinery.
+# Launch the Fern simulation using a prebuilt PRISMS-PF application.
 # Example: sbatch --account=YOUR_ACCOUNT run_fern.sb configs/paper_fern_dendrite_amr_t500.prm Fern_320_ON
 set -euo pipefail
 module purge
