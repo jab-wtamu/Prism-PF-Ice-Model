@@ -1,16 +1,8 @@
-# ==============================================================================================
-# hollow_Gamma3_U128_T100_AMR_ON_dt2e4
-# Purpose : Hollow Prism simulation using the corrected (modular) Demange model in PRISMS-PF 4.0.
-#           Completed ACES job 2324395: 500000 iterations, simulated time T = 100,
-#           17:14:02 walltime, 201 saved solution states including the initial state.
-# Mesh    : FULL domain 51.2 x 51.2 x 102.4, subdivisions 4 x 4 x 8,
-#           global refinement 5 -> finest uniform-equivalent mesh 128 x 128 x 256 Q2 FE cells.
-#           At that level: cell spacing 0.4 and Q2 node spacing 0.2.
-#           AMR is enabled; active cell counts change during the run.
-# Time    : explicit dt = 0.0002, 500000 steps -> T_end = 100;
-#           200 equal output intervals (201 states including T=0).
-# ==============================================================================================
-
+# Hollow Prism — AMR enabled, target T=100
+# Domain 51.2 x 51.2 x 102.4; Q2 finite elements; global refinement 5
+# Explicit dt=0.0002; 500000 increments; 200 output intervals
+# The finest mesh has 128 x 128 x 256 Q2 cells before adaptive coarsening.
+#
 # dim = 3 and degree = 2 are compile-time constants in main.cc (do not add set dim / set degree).
 set global refinement = 5
 set mesh type = rectangular
@@ -57,7 +49,7 @@ set Model constant lambda = 3.0, DOUBLE
 set Model constant D_tilde = 1.8801, DOUBLE
 set Model constant Lsat = 3.0, DOUBLE
 
-# ---- corrected-model switches (PPF 4.0 Physics Update docs/DERIVATIONS.md sections H, Q, G, P)
+# ---- Model formulation and anisotropy options
 set Model constant half_convention = variational, STRING
 set Model constant q_normalization = one_sided, STRING
 set Model constant gamma_structure = demange_literal, STRING
