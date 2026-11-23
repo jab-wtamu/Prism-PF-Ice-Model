@@ -1,13 +1,9 @@
 # Demange Ice Growth Model — Fern Dendrite (PRISMS-PF 4.0.0)
 
-This folder contains **one simulation case only**: the 3D Fern dendrite on a
+This application provides a 3D Fern dendrite simulation on a
 **320 × 320 × 51.2** physical domain with **adaptive mesh refinement (AMR) enabled**.
-
-The code and the `.prm` file are byte-identical to the ACES source and
-`configs/paper_fern_dendrite_amr_t500.prm` supplied for this project.
-That parameter file also matches the archived production run's `parameters.prm`.
-No mesh-conversion scripts, restart tools, smoke-test configurations, other
-crystals, output files, or compiled binaries are included.
+The configuration in `configs/paper_fern_dendrite_amr_t500.prm` specifies the
+model parameters and numerical setup.
 
 ## Files
 
@@ -20,10 +16,8 @@ crystals, output files, or compiled binaries are included.
 - `run_fern.sb` — portable *convenience* ACES-style Slurm launcher.
 - `.gitignore` — prevents accidental commits of build and run outputs.
 
-The **source files and parameter file** are exact archival copies. The two
-convenience scripts are generic publication wrappers, **not** the original
-validated ACES `build.sh` and `run_case.sb`; adjust environment/module paths
-and test them before use on another system.
+The build and Slurm scripts are example wrappers. Configure the environment,
+library paths, and scheduler options for the target system before use.
 
 ## Numerical setup
 
@@ -40,26 +34,21 @@ and test them before use on another system.
 | Boundary conditions | Natural (zero normal flux) on all outer faces |
 | Initial seed | Disc radius 6.4; half-thickness 1.6 |
 
-**Paper fidelity:** the 320 × 320 × 51.2 *physical domain* corresponds to the
+**Relation to the published model:** the 320 × 320 × 51.2 *physical domain* corresponds to the
 published Fern setup. However, this implementation uses adaptive Q2 finite
 elements, explicit time stepping, and natural boundaries rather than the
 paper's fixed Fourier-spectral discretization, semi-implicit stepping, and
-periodic boundaries. It is a corrected implementation with documented choices
-for `half_convention`, `q_normalization`, and anisotropy regularization, **not
-an exact numerical reproduction** of the paper.
+periodic boundaries. The choices for `half_convention`, `q_normalization`, and anisotropy regularization
+are explicit model settings; this is **not an exact numerical reproduction**
+of the published simulation.
 
 The model target of T=500 is the configured stopping time; it does **not**
 mean the original AMR-ON production run completed T=500 within its 72-hour
 walltime limit.
 
-**Original comment typo:** the `.prm` file says "12500 steps" near the top,
-but the actual parameter is `set number steps = 1250000`, consistent with
-T=500 when `dt=0.0004`. The original parameter file has been preserved as-is.
-
 ## Build and launch
 
-Build with a locally installed, compatible PRISMS-PF 4.0.0 and deal.II
-(the research run used a true-L2-instrumented PRISMS-PF fork):
+Build with a compatible PRISMS-PF 4.0.0 and deal.II installation:
 
 ```bash
 export PRISMS_PF_INSTALL=/path/to/PRISMS-PF/install
@@ -67,8 +56,7 @@ export DEAL_II_INSTALL=/path/to/deal.II/install
 bash build.sh
 ```
 
-From the application folder, submit one **new** simulation (replace the account
-placeholder; Slurm maximum walltime still applies):
+From the application folder, submit a simulation with the appropriate Slurm account:
 
 ```bash
 sbatch --account=YOUR_ACES_ACCOUNT run_fern.sb configs/paper_fern_dendrite_amr_t500.prm Fern_320_AMR_ON
