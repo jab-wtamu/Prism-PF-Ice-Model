@@ -1,11 +1,10 @@
-// Demange snow-crystal anisotropy A(n), its missing-orientation regularization, exact analytic
-// derivatives, and the Cartesian phase-field flux F1 -- PPF 4.0 Physics Update.
+// Demange snow-crystal anisotropy A(n), missing-orientation regularization,
+// analytic derivatives, and the Cartesian phase-field flux F1.
 //
-// Header-only, no deal.II/PRISMS-PF dependency (unit-tested stand-alone:
-// verification/cpp/test_demange_anisotropy.cc). Function-for-function mirror of the verified
-// reference implementation verification/python/demange_aniso.py.
-// Mathematics and evidence: docs/DERIVATIONS.md (sections H, P, R, D, G).
+// Header-only implementation independent of deal.II and PRISMS-PF.
+// Includes the supplemental literal and pole-regular anisotropy variants.
 //
+
 // Angle conventions ([P]; folded as in the PF3 code):
 //   theta = atan2(n_y, n_x), psi = atan2(sqrt(n_x^2 + n_y^2), n_z)
 //   th = |remainder(theta, pi/3)| in [0, pi/6]  (6-fold rotation + mirror theta -> -theta)
@@ -27,7 +26,7 @@ namespace demange
   enum class Model
   {
     supplement_literal, // [P] A(n) + [S] Eq. 1-4 regularization (|theta| reading), exact roots
-    pole_regular        // damp-then-regularize, smooth at n = +-z (DERIVATIONS.md section P)
+    pole_regular        // damp-then-regularize, smooth at n = +-z (pole regularization)
   };
 
   enum class PoleWeight
@@ -341,7 +340,7 @@ namespace demange
       return r;
     }
 
-    // Pole-regular (damp-then-regularize) model, DERIVATIONS.md section P.
+    // Pole-regular model: damp anisotropy near the poles before regularization.
     AnisoEval
     eval_pole_regular(const double th, const double ps) const
     {
