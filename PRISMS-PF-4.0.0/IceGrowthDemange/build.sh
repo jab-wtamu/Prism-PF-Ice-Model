@@ -1,7 +1,7 @@
 #!/bin/bash
 # Convenience build wrapper for PRISMS-PF 4.0.0 on ACES.
 # Set PRISMS_PF_INSTALL and DEAL_II_INSTALL to existing built/install locations.
-# The verified research runs used the separately installed true-L2 build of PRISMS-PF.
+# Use a compatible PRISMS-PF 4.0.0 and deal.II installation.
 set -euo pipefail
 module purge
 module load foss/2023b CMake/3.27.6
