@@ -1,0 +1,74 @@
+# ==============================================================================================
+# hollow_Gamma3_U128_T100_AMR_ON_dt2e4
+# Purpose : Hollow Prism simulation using the corrected (modular) Demange model in PRISMS-PF 4.0.
+#           Completed ACES job 2324395: 500000 iterations, simulated time T = 100,
+#           17:14:02 walltime, 201 saved solution states including the initial state.
+# Mesh    : FULL domain 51.2 x 51.2 x 102.4, subdivisions 4 x 4 x 8,
+#           global refinement 5 -> finest uniform-equivalent mesh 128 x 128 x 256 Q2 FE cells.
+#           At that level: cell spacing 0.4 and Q2 node spacing 0.2.
+#           AMR is enabled; active cell counts change during the run.
+# Time    : explicit dt = 0.0002, 500000 steps -> T_end = 100;
+#           200 equal output intervals (201 states including T=0).
+# ==============================================================================================
+
+# dim = 3 and degree = 2 are compile-time constants in main.cc (do not add set dim / set degree).
+set global refinement = 5
+set mesh type = rectangular
+subsection Rectangular mesh
+  set x size = 51.2
+  set y size = 51.2
+  set z size = 102.4
+  set x subdivisions = 4
+  set y subdivisions = 4
+  set z subdivisions = 8
+end
+
+set mesh adaptivity = true
+set max refinement = 5
+set min refinement = 0
+set remeshing period = 2500
+subsection refinement criterion: 0
+  set variables = phi
+  set type = value
+  set value lower bound = -0.99
+  set value upper bound = 0.99
+end
+
+set time step = 0.0002
+set number steps = 500000
+subsection output
+  set condition = EQUAL_SPACING
+  set number = 200
+end
+
+# Natural (zero-flux, F.nu = 0) on all six outer faces for u, phi, xi1. Full domain: these are the
+# outer walls of the box, not symmetry planes.
+subsection boundary conditions: 0
+  set variables = u, phi, xi1
+  set conditions = Natural, Natural, Natural, Natural, Natural, Natural
+end
+
+# ---- Hollow Prism physics (D_tilde = 0.6267 lambda)
+set Model constant u0 = 0.3, DOUBLE
+set Model constant eps_xy = 0.1, DOUBLE
+set Model constant eps_z = 0.5, DOUBLE
+set Model constant Gamma = 3.0, DOUBLE
+set Model constant lambda = 3.0, DOUBLE
+set Model constant D_tilde = 1.8801, DOUBLE
+set Model constant Lsat = 3.0, DOUBLE
+
+# ---- corrected-model switches (PPF 4.0 Physics Update docs/DERIVATIONS.md sections H, Q, G, P)
+set Model constant half_convention = variational, STRING
+set Model constant q_normalization = one_sided, STRING
+set Model constant gamma_structure = demange_literal, STRING
+set Model constant anisotropy = pole_regular, STRING
+set Model constant pole_weight = sin6, STRING
+
+# ---- initial condition: disc germ centred in the full domain
+set Model constant seed = disc, STRING
+set Model constant seed_center_x = 25.6, DOUBLE
+set Model constant seed_center_y = 25.6, DOUBLE
+set Model constant seed_center_z = 51.2, DOUBLE
+set Model constant ic_interface_width = 1.0, DOUBLE
+set Model constant disc_radius = 3.2, DOUBLE
+set Model constant disc_half_thickness = 1.6, DOUBLE
